@@ -46,6 +46,11 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
             text = "New Text",
             modifier = modifier.background(color = MaterialTheme.colorScheme.tertiary)
         )
+
+        Text(
+            text = "Error text",
+            modifier = modifier.background(color = MaterialTheme.colorScheme.error)
+        )
     }
 }
 
