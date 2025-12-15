@@ -61,12 +61,86 @@ jobs:
 
           echo "✅ Git LFS tracking looks correct."
 
+      # ✅ Run unit tests without noisy stacktrace, capture outcome
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        id: unit_tests
+        continue-on-error: true
+        run: ./gradlew testDebugUnitTest --no-daemon --console=plain
 
-      # If you want snapshot verification (recommended for PRs)
+      # ✅ Friendly summary in GitHub Actions "Summary" tab if unit tests fail
+      - name: Summarize unit test failures
+        if: steps.unit_tests.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "## ❌ Unit tests failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the **unit-test-reports** artifact and open the HTML report." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Failing tests (top 50)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob
+          import xml.etree.ElementTree as ET
+
+          files = glob.glob("app/build/test-results/testDebugUnitTest/*.xml")
+          failures = []
+          for f in files:
+              root = ET.parse(f).getroot()
+              for tc in root.findall(".//testcase"):
+                  name = tc.attrib.get("name", "")
+                  cls = tc.attrib.get("classname", "")
+                  node = tc.find("failure") or tc.find("error")
+                  if node is not None:
+                      msg = (node.attrib.get("message") or "").strip()
+                      first = (msg.splitlines()[0] if msg else "")[:160]
+                      line = f"- {cls}.{name}"
+                      if first:
+                          line += f"  →  {first}"
+                      failures.append(line)
+
+          if not failures:
+              print("No failing tests parsed from XML. Check the HTML report artifact for details.")
+          else:
+              print("\n".join(failures[:50]))
+          PY
+
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tip: run locally with \`./gradlew testDebugUnitTest\` and open the report under \`app/build/reports/tests/\`." >> "$GITHUB_STEP_SUMMARY"
+
+          echo ""
+          echo "❌ Unit tests failed. See the Summary tab + unit-test-reports artifact."
+          exit 1
+
+      # ✅ Run Paparazzi snapshot verification without noisy stacktrace, capture outcome
       - name: Run Paparazzi snapshot verification
-        run: ./gradlew :app:verifyPaparazziDebug --stacktrace
+        id: paparazzi
+        continue-on-error: true
+        run: ./gradlew :app:verifyPaparazziDebug --no-daemon --console=plain
+
+      # ✅ Friendly summary if Paparazzi verify fails
+      - name: Summarize Paparazzi failure
+        if: steps.paparazzi.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "## ❌ Paparazzi snapshot verification failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the **paparazzi-reports** artifact and open:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`app/build/reports/paparazzi/**/index.html\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Fix locally:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Update baselines: \`./gradlew :app:recordPaparazziDebug\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Re-verify: \`./gradlew :app:verifyPaparazziDebug\`" >> "$GITHUB_STEP_SUMMARY"
+
+          echo ""
+          echo "❌ Paparazzi verification failed. See the Summary tab + paparazzi-reports artifact."
+          exit 1
 
       # Upload reports so you can open them from CI run page
       - name: Upload Unit Test Reports
