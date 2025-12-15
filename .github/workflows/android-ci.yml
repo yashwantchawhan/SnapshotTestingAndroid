@@ -1,0 +1,87 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (with LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # Optional: makes sure LFS is available; checkout@v4 usually handles it,
+      # but this avoids flakiness on some runners.
+      - name: Install Git LFS
+        run: |
+          git lfs install --local
+          git lfs pull
+
+      # ✅ Fail fast if any files that should be in LFS are not actually in LFS
+      - name: Verify Git LFS tracked files are actually in LFS
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+
+          # Files that should be LFS-tracked based on .gitattributes filter=lfs
+          git ls-files ':(attr:filter=lfs)' | sort > "$expected"
+
+          # Files currently recorded by Git LFS
+          git lfs ls-files -n | sort > "$actual"
+
+          if ! diff -u "$expected" "$actual"; then
+            echo >&2 ""
+            echo >&2 "❌ Detected files that should be tracked by Git LFS but are not."
+            echo >&2 "Fix:"
+            echo >&2 "  1) Install LFS:  brew install git-lfs && git lfs install"
+            echo >&2 "  2) Track patterns: git lfs track \"**/snapshots/**/*.png\""
+            echo >&2 "  3) Re-add & recommit affected files (and .gitattributes), then push."
+            exit 1
+          fi
+
+          echo "✅ Git LFS tracking looks correct."
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      # If you want snapshot verification (recommended for PRs)
+      - name: Run Paparazzi snapshot verification
+        run: ./gradlew :app:verifyPaparazziDebug --stacktrace
+
+      # Upload reports so you can open them from CI run page
+      - name: Upload Unit Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+
+      - name: Upload Paparazzi Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paparazzi-reports
+          path: |
+            app/build/reports/paparazzi/
