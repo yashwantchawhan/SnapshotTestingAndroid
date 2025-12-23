@@ -71,7 +71,7 @@ fun BankDashboardSimpleScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            item { SectionTitle("Accounts") }
+            item { SectionTitle("Accounts Summary") }
 
             items(accounts) { acc ->
                 SimpleCard {
