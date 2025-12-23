@@ -5,12 +5,12 @@ import com.example.bankdashboard.BankDashboardSimpleScreen
 import org.junit.Rule
 import org.junit.Test
 
-class HelloComposeTest {
+class DashboardScreenShotTest {
     @get:Rule
     val paparazzi = Paparazzi()
 
     @Test
     fun compose() {
-        paparazzi.snapshot { Greeting("Hello") }
+        paparazzi.snapshot { BankDashboardSimpleScreen() }
     }
 }

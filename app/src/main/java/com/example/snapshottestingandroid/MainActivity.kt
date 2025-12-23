@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.bankdashboard.BankDashboardSimpleScreen
 import com.example.snapshottestingandroid.ui.theme.SnapshotTestingAndroidTheme
 
 class MainActivity : ComponentActivity() {
@@ -24,9 +25,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             SnapshotTestingAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                    BankDashboardSimpleScreen(
+                      modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
@@ -50,6 +50,11 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         Text(
             text = "Error text",
             modifier = modifier.background(color = MaterialTheme.colorScheme.error)
+        )
+
+        Text(
+            text = "Error text",
+            modifier = modifier.background(color = MaterialTheme.colorScheme.primary)
         )
     }
 }
